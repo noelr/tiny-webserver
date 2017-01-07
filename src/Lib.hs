@@ -14,9 +14,14 @@ import GHC.Generics (Generic)
 import Data.Text
 import Data.List
 import Data.Maybe
+import Control.Concurrent.Async
+import Control.Monad
+import System.Directory
+import System.FilePath ((</>))
 
 
-data AppConfig = AppConfig { index :: Maybe Text
+data AppConfig = AppConfig { port :: Int
+                           , index :: Maybe Text
                            , static :: Maybe Text
                            , services :: [Service]
                            } deriving (Show, Generic)
@@ -24,19 +29,31 @@ data AppConfig = AppConfig { index :: Maybe Text
 
 instance FromJSON AppConfig where
   parseJSON (Object o) =
-    AppConfig <$> o .:? "index"
+    AppConfig <$> o .: "port"
+              <*> o .:? "index"
               <*> o .:? "static"
               <*> o .:? "services" .!= []
 
 
-data Service = Service { name :: Text, url :: Text, port :: Int } deriving (Show, Generic)
+data Service = Service { name :: Text, url :: Text } deriving (Show, Generic)
 instance FromJSON Service
 instance ToJSON Service
 
 
+confFolder = "conf"
+confFile = (</>) confFolder
+
+
 go :: IO ()
 go = do
-  conf <- eitherDecode <$> B.readFile "conf/services.json"
+  confs <- listDirectory confFolder
+  mapConcurrently runApp confs
+  return ()
+
+
+runApp :: String -> IO ()
+runApp f = do
+  conf <- eitherDecode <$> B.readFile (confFile f)
   case conf of
     Right conf -> run conf
     Left err -> print err
@@ -45,10 +62,10 @@ go = do
 run :: AppConfig -> IO ()
 run conf = do
   let names = fmap (Data.Text.unpack . name) (Lib.services conf)
-  sequence_ $ fmap startFiles names
+  traverse startFiles names
   let indexFile = fmap Data.Text.unpack (Lib.index conf)
 
-  scotty 5000 $ do
+  scotty (Lib.port conf) $ do
     middleware logStdoutDev
     staticMiddleware $ fmap Data.Text.unpack (Lib.static conf)
     get "/services" $ Web.Scotty.json $ Lib.services conf

@@ -24,6 +24,9 @@ library
                      , aeson
                      , bytestring
                      , text
+                     , async
+                     , directory
+                     , filepath
   default-language:    Haskell2010
 
 executable tiny-webserver-exe

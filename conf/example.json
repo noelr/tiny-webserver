@@ -1,12 +1,11 @@
-{ "index": "static/example.html"
+{ "port": 5000
+, "index": "static/example.html"
 , "static": "static"
 , "services": [ { "name": "files"
-                , "url": "http://localhost:4001/"
-                , "port": 4001
+                , "url": "http://localhost:4002/"
                 }
               , { "name": "append"
                 , "url": "http://localhost:4001/"
-                , "port": 4002
                 }
               ]
 }
